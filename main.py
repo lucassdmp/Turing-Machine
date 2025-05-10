@@ -330,31 +330,31 @@ class TuringMachineGUI(QMainWindow):
         if rules_text:
             self.tm.load_rules(rules_text)
         else:
-            QMessageBox.warning(self, "Warning", "No rules entered in the rules editor")
+            QMessageBox.warning(self, "Warning", "Nenhuma regra foi carregada.")
             return False
         return True
     
     def load_rules_file(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Rules File", "", "Turing Machine Files (*.tm);;All Files (*)")
+        file_name, _ = QFileDialog.getOpenFileName(self, "Abrir Arquivo de Regras", "", "Turing Machine Files (*.tm);;All Files (*)")
         if file_name:
             try:
                 with open(file_name, 'r') as f:
                     content = f.read()
                     self.rules_edit.setPlainText(content)
                     self.tm.load_rules(content)
-                    QMessageBox.information(self, "Success", "Rules loaded successfully")
+                    QMessageBox.information(self, "Success", "Regras Carregadas com Sucesso")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to load file: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Falha ao carregar: {str(e)}")
     
     def save_rules_file(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save Rules File", "", "Turing Machine Files (*.tm);;All Files (*)")
+        file_name, _ = QFileDialog.getSaveFileName(self, "Salvar arquivo de Regras", "", "Turing Machine Files (*.tm);;All Files (*)")
         if file_name:
             try:
                 with open(file_name, 'w') as f:
                     f.write(self.rules_edit.toPlainText())
-                    QMessageBox.information(self, "Success", "Rules saved successfully")
+                    QMessageBox.information(self, "Success", "Regras Salvas com Sucesso")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save file: {str(e)}")
+                QMessageBox.critical(self, "Error", f"FFalha ao salvar o abrigo: {str(e)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
