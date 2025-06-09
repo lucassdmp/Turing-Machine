@@ -273,7 +273,7 @@ class TuringMachineGUI(QMainWindow):
         rules_layout = QVBoxLayout()
         rules_layout.addWidget(QLabel("Regras: Read Write Move"))
         self.rules_edit = QTextEdit()
-        self.rules_edit.setPlaceholderText("Enter rules here, one per line\nExample: q0 A B R q1")
+        self.rules_edit.setPlaceholderText("Enter rules here, one per line\nExample: A B R (READ WRITE MOVE), use '_' for blank")
         rules_layout.addWidget(self.rules_edit)
         config_layout.addLayout(rules_layout)
         
