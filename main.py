@@ -1,8 +1,8 @@
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                              QWidget, QLabel, QLineEdit, QPushButton, QTextEdit, 
-                             QFileDialog, QMessageBox, QScrollArea, QGroupBox)
-from PyQt5.QtCore import Qt, QTimer
+                             QFileDialog, QMessageBox, QScrollArea, QGroupBox, QSlider)
+from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QColor, QPalette
 
 class TapeWidget(QWidget):
@@ -114,6 +114,7 @@ class TapeWidget(QWidget):
                     }
                 """)
 
+
 class TuringMachine:
     def __init__(self):
         self.tape = {}
@@ -199,10 +200,18 @@ class TuringMachine:
                 self.tape[i] = char
         self.head_pos = 0
 
+
 class TuringMachineGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.tm = TuringMachine()
+        
+        # Initialize animation control first
+        self.animation_timer = QTimer(self)
+        self.animation_timer.timeout.connect(self.step_machine)
+        self.animation_speed = 500  # Default speed in ms
+        self.is_running = False
+        
         self.init_ui()
         self.setWindowTitle("Simulador de Máquina de Turing")
         self.resize(1000, 600)
@@ -250,6 +259,22 @@ class TuringMachineGUI(QMainWindow):
             QPushButton:pressed {
                 background-color: #2d2d2d;
             }
+            QSlider::groove:horizontal {
+                background: #3d3d3d;
+                height: 8px;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #ff5555;
+                border: 1px solid #444;
+                width: 18px;
+                margin: -5px 0;
+                border-radius: 9px;
+            }
+            QSlider::sub-page:horizontal {
+                background: #ff5555;
+                border-radius: 4px;
+            }
         """)
         
         self.tape_widget = TapeWidget()
@@ -265,6 +290,24 @@ class TuringMachineGUI(QMainWindow):
         state_layout.addWidget(self.status_label)
         main_layout.addLayout(state_layout)
         
+        # Add speed control slider
+        speed_layout = QHBoxLayout()
+        speed_layout.addWidget(QLabel("Velocidade:"))
+        
+        self.speed_slider = QSlider(Qt.Horizontal)
+        self.speed_slider.setRange(50, 1000)  # 50ms to 1000ms
+        self.speed_slider.setValue(500)  # Default to 500ms
+        self.speed_slider.setTickPosition(QSlider.TicksBelow)
+        self.speed_slider.setTickInterval(100)
+        self.speed_slider.valueChanged.connect(self.update_speed)
+        speed_layout.addWidget(self.speed_slider)
+        
+        self.speed_label = QLabel("500 ms")
+        self.speed_label.setStyleSheet("min-width: 70px;")
+        speed_layout.addWidget(self.speed_label)
+        
+        main_layout.addLayout(speed_layout)
+        
         control_layout = QHBoxLayout()
         self.run_button = QPushButton("Executar")
         self.run_button.clicked.connect(self.run_machine)
@@ -272,9 +315,14 @@ class TuringMachineGUI(QMainWindow):
         self.step_button.clicked.connect(self.step_machine)
         self.reset_button = QPushButton("Reiniciar")
         self.reset_button.clicked.connect(self.reset_machine)
+        self.pause_button = QPushButton("Pausar")
+        self.pause_button.clicked.connect(self.pause_machine)
+        self.pause_button.setVisible(False)  # Hidden initially
+        
         control_layout.addWidget(self.run_button)
         control_layout.addWidget(self.step_button)
         control_layout.addWidget(self.reset_button)
+        control_layout.addWidget(self.pause_button)
         main_layout.addLayout(control_layout)
         
         config_group = QGroupBox("Configuração")
@@ -318,7 +366,7 @@ class TuringMachineGUI(QMainWindow):
         
         if self.tm.halted:
             status = "Parado"
-        elif self.tm.tape:
+        elif self.is_running:
             status = "Executando"
         else:
             status = "Pronto"
@@ -332,26 +380,124 @@ class TuringMachineGUI(QMainWindow):
         if not self.tm.tape and self.input_field.text():
             self.tm.load_content(self.input_field.text())
         
-        self.tm.run_until_halt()
+        # If already halted, reset before running
+        if self.tm.halted:
+            self.tm.reset()
+            if self.input_field.text():
+                self.tm.load_content(self.input_field.text())
+        
+        self.is_running = True
+        self.tm.halted = False
         self.update_display()
         
-        QMessageBox.information(self, "Resultado", f"Conteúdo final da fita: {self.tm.get_tape_content()}")
+        # Set up UI for running state
+        self.run_button.setEnabled(False)
+        self.step_button.setEnabled(False)
+        self.pause_button.setVisible(True)
         
+        # Start the animation timer
+        self.animation_timer.start(self.animation_speed)
+    
     def step_machine(self):
+        if self.tm.halted:
+            self.pause_machine()
+            return
+            
         if not self.load_rules(): 
+            self.pause_machine()
             return
             
         if not self.tm.tape and self.input_field.text():
             self.tm.load_content(self.input_field.text())
         
+        # Apply visual feedback for the current cell
+        self.highlight_current_cell()
+        
+        # Perform the step
         self.tm.step()
+        self.update_display()
+        
+        # If halted after step, show result
+        if self.tm.halted:
+            self.pause_machine()
+            QMessageBox.information(self, "Resultado", f"Conteúdo final da fita: {self.tm.get_tape_content()}")
+    
+    def pause_machine(self):
+        self.is_running = False
+        self.animation_timer.stop()
+        
+        # Reset UI controls
+        self.run_button.setEnabled(True)
+        self.step_button.setEnabled(True)
+        self.pause_button.setVisible(False)
+        
         self.update_display()
     
     def reset_machine(self):
+        # Stop any running animation
+        self.animation_timer.stop()
+        self.is_running = False
+        
+        # Reset machine state
         self.tm.reset()
         if self.input_field.text():
             self.tm.load_content(self.input_field.text())
+        
+        # Reset UI controls
+        self.run_button.setEnabled(True)
+        self.step_button.setEnabled(True)
+        self.pause_button.setVisible(False)
+        
         self.update_display()
+    
+    def update_speed(self):
+        self.animation_speed = self.speed_slider.value()
+        self.speed_label.setText(f"{self.animation_speed} ms")
+        
+        # Update timer interval if running
+        if self.animation_timer.isActive():
+            self.animation_timer.setInterval(self.animation_speed)
+    
+    def highlight_current_cell(self):
+        # Apply animation effect to the current cell
+        center_pos = self.tape_widget.visible_cells // 2
+        current_cell = self.tape_widget.cells[center_pos]
+        
+        # Create highlight animation
+        animation = QPropertyAnimation(current_cell, b"styleSheet")
+        animation.setDuration(300)
+        animation.setEasingCurve(QEasingCurve.OutQuad)
+        
+        # Animation sequence
+        animation.setKeyValueAt(0, """
+            QLabel {
+                border: 2px solid #ff5555;
+                background-color: #4d3d3d;
+                color: #fff;
+                font-weight: bold;
+                font-size: 16px;
+            }
+        """)
+        animation.setKeyValueAt(0.5, """
+            QLabel {
+                border: 2px solid #ff5555;
+                background-color: #ff5555;
+                color: #000;
+                font-weight: bold;
+                font-size: 16px;
+            }
+        """)
+        animation.setKeyValueAt(1, """
+            QLabel {
+                border: 2px solid #ff5555;
+                background-color: #3d3d3d;
+                color: #fff;
+                font-weight: bold;
+                font-size: 16px;
+            }
+        """)
+        
+        animation.start(QPropertyAnimation.DeleteWhenStopped)
     
     def load_rules(self): 
         rules_text = self.rules_edit.toPlainText()
