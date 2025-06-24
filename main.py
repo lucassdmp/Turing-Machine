@@ -153,11 +153,9 @@ class TuringMachine:
         
         if rule_key in self.rules:
             new_state, write_symbol, move_direction = self.rules[rule_key]
-            
-            # Update state
+
             self.state = new_state
             
-            # Write symbol
             if write_symbol != "_":
                 self.tape[self.head_pos] = write_symbol
             else:
@@ -206,10 +204,9 @@ class TuringMachineGUI(QMainWindow):
         super().__init__()
         self.tm = TuringMachine()
         
-        # Initialize animation control first
         self.animation_timer = QTimer(self)
         self.animation_timer.timeout.connect(self.step_machine)
-        self.animation_speed = 500  # Default speed in ms
+        self.animation_speed = 500 
         self.is_running = False
         
         self.init_ui()
@@ -289,14 +286,13 @@ class TuringMachineGUI(QMainWindow):
         state_layout.addStretch()
         state_layout.addWidget(self.status_label)
         main_layout.addLayout(state_layout)
-        
-        # Add speed control slider
+    
         speed_layout = QHBoxLayout()
         speed_layout.addWidget(QLabel("Velocidade:"))
         
         self.speed_slider = QSlider(Qt.Horizontal)
-        self.speed_slider.setRange(50, 1000)  # 50ms to 1000ms
-        self.speed_slider.setValue(500)  # Default to 500ms
+        self.speed_slider.setRange(50, 1000) 
+        self.speed_slider.setValue(500)  
         self.speed_slider.setTickPosition(QSlider.TicksBelow)
         self.speed_slider.setTickInterval(100)
         self.speed_slider.valueChanged.connect(self.update_speed)
@@ -317,7 +313,7 @@ class TuringMachineGUI(QMainWindow):
         self.reset_button.clicked.connect(self.reset_machine)
         self.pause_button = QPushButton("Pausar")
         self.pause_button.clicked.connect(self.pause_machine)
-        self.pause_button.setVisible(False)  # Hidden initially
+        self.pause_button.setVisible(False)
         
         control_layout.addWidget(self.run_button)
         control_layout.addWidget(self.step_button)
@@ -379,8 +375,7 @@ class TuringMachineGUI(QMainWindow):
         
         if not self.tm.tape and self.input_field.text():
             self.tm.load_content(self.input_field.text())
-        
-        # If already halted, reset before running
+
         if self.tm.halted:
             self.tm.reset()
             if self.input_field.text():
@@ -390,12 +385,10 @@ class TuringMachineGUI(QMainWindow):
         self.tm.halted = False
         self.update_display()
         
-        # Set up UI for running state
         self.run_button.setEnabled(False)
         self.step_button.setEnabled(False)
         self.pause_button.setVisible(True)
-        
-        # Start the animation timer
+
         self.animation_timer.start(self.animation_speed)
     
     def step_machine(self):
@@ -409,15 +402,12 @@ class TuringMachineGUI(QMainWindow):
             
         if not self.tm.tape and self.input_field.text():
             self.tm.load_content(self.input_field.text())
-        
-        # Apply visual feedback for the current cell
+
         self.highlight_current_cell()
-        
-        # Perform the step
+
         self.tm.step()
         self.update_display()
-        
-        # If halted after step, show result
+
         if self.tm.halted:
             self.pause_machine()
             QMessageBox.information(self, "Resultado", f"Conteúdo final da fita: {self.tm.get_tape_content()}")
@@ -426,7 +416,6 @@ class TuringMachineGUI(QMainWindow):
         self.is_running = False
         self.animation_timer.stop()
         
-        # Reset UI controls
         self.run_button.setEnabled(True)
         self.step_button.setEnabled(True)
         self.pause_button.setVisible(False)
@@ -434,16 +423,13 @@ class TuringMachineGUI(QMainWindow):
         self.update_display()
     
     def reset_machine(self):
-        # Stop any running animation
         self.animation_timer.stop()
         self.is_running = False
         
-        # Reset machine state
         self.tm.reset()
         if self.input_field.text():
             self.tm.load_content(self.input_field.text())
         
-        # Reset UI controls
         self.run_button.setEnabled(True)
         self.step_button.setEnabled(True)
         self.pause_button.setVisible(False)
@@ -454,21 +440,17 @@ class TuringMachineGUI(QMainWindow):
         self.animation_speed = self.speed_slider.value()
         self.speed_label.setText(f"{self.animation_speed} ms")
         
-        # Update timer interval if running
         if self.animation_timer.isActive():
             self.animation_timer.setInterval(self.animation_speed)
     
     def highlight_current_cell(self):
-        # Apply animation effect to the current cell
         center_pos = self.tape_widget.visible_cells // 2
         current_cell = self.tape_widget.cells[center_pos]
         
-        # Create highlight animation
         animation = QPropertyAnimation(current_cell, b"styleSheet")
         animation.setDuration(300)
         animation.setEasingCurve(QEasingCurve.OutQuad)
         
-        # Animation sequence
         animation.setKeyValueAt(0, """
             QLabel {
                 border: 2px solid #ff5555;
