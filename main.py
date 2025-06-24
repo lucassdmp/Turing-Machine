@@ -119,12 +119,13 @@ class TuringMachine:
         self.tape = {}
         self.head_pos = 0
         self.rules = {}
+        self.state = "q0"  
         self.halted = False
 
     def reset(self):
         self.tape = {}
         self.head_pos = 0
-        self.state = "q0"
+        self.state = "q0"  
         self.halted = False
         
     def load_rules(self, rules_text):
@@ -133,26 +134,42 @@ class TuringMachine:
             line = line.strip()
             if line and not line.startswith('#'):
                 parts = line.split()
-                if len(parts) == 3:
-                    read = parts[0]
-                    write = parts[1]
-                    move = parts[2].upper()
-                    self.rules[read] = (write, move)
+                if len(parts) == 5: 
+                    current_state = parts[0]
+                    read_symbol = parts[1]
+                    new_state = parts[2]
+                    write_symbol = parts[3]
+                    move_direction = parts[4].upper()
+                    
+                    self.rules[(current_state, read_symbol)] = (new_state, write_symbol, move_direction)
     
     def step(self):
+        if self.halted:
+            return False
+            
         current_symbol = self.tape.get(self.head_pos, "_")
-        if current_symbol in self.rules:
-            write, move = self.rules[current_symbol]
-            if write != "_":
-                self.tape[self.head_pos] = write
+        rule_key = (self.state, current_symbol)
+        
+        if rule_key in self.rules:
+            new_state, write_symbol, move_direction = self.rules[rule_key]
+            
+            # Update state
+            self.state = new_state
+            
+            # Write symbol
+            if write_symbol != "_":
+                self.tape[self.head_pos] = write_symbol
             else:
-                self.tape.pop(self.head_pos, None)
-            if move == "R":
+                if self.head_pos in self.tape:
+                    del self.tape[self.head_pos]
+            
+            if move_direction == "R":
                 self.head_pos += 1
-            elif move == "L":
+            elif move_direction == "L":
                 self.head_pos -= 1
-            elif move == "F":
+            elif move_direction == "F": 
                 self.halted = True
+                
             return True
         else:
             self.halted = True
@@ -187,7 +204,7 @@ class TuringMachineGUI(QMainWindow):
         super().__init__()
         self.tm = TuringMachine()
         self.init_ui()
-        self.setWindowTitle("Turing Machine Simulator")
+        self.setWindowTitle("Simulador de Máquina de Turing")
         self.resize(1000, 600)
         
     def init_ui(self):
@@ -238,49 +255,53 @@ class TuringMachineGUI(QMainWindow):
         self.tape_widget = TapeWidget()
         main_layout.addWidget(self.tape_widget)
         
-        info_layout = QHBoxLayout()
-        self.status_label = QLabel("State: q0")
+        state_layout = QHBoxLayout()
+        self.state_label = QLabel("Estado: q0")
+        self.state_label.setStyleSheet("font-weight: bold; font-size: 14px;")
+        self.status_label = QLabel("Status: Pronto")
         self.status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        self.status_label = QLabel("Status: Ready")
-        self.status_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        info_layout.addWidget(self.status_label)
-        info_layout.addStretch()
-        info_layout.addWidget(self.status_label)
-        main_layout.addLayout(info_layout)
+        state_layout.addWidget(self.state_label)
+        state_layout.addStretch()
+        state_layout.addWidget(self.status_label)
+        main_layout.addLayout(state_layout)
         
         control_layout = QHBoxLayout()
-        self.run_button = QPushButton("Run")
+        self.run_button = QPushButton("Executar")
         self.run_button.clicked.connect(self.run_machine)
-        self.step_button = QPushButton("Step")
+        self.step_button = QPushButton("Passo")
         self.step_button.clicked.connect(self.step_machine)
-        self.reset_button = QPushButton("Reset")
+        self.reset_button = QPushButton("Reiniciar")
         self.reset_button.clicked.connect(self.reset_machine)
         control_layout.addWidget(self.run_button)
         control_layout.addWidget(self.step_button)
         control_layout.addWidget(self.reset_button)
         main_layout.addLayout(control_layout)
         
-        config_group = QGroupBox("Configuration")
+        config_group = QGroupBox("Configuração")
         config_layout = QVBoxLayout()
         
         input_layout = QHBoxLayout()
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Insira o conteúdo inicial da fita")
-        input_layout.addWidget(QLabel("Conteudo Inicial:"))
+        self.input_field.setPlaceholderText("Digite o conteúdo inicial da fita")
+        input_layout.addWidget(QLabel("Conteúdo Inicial:"))
         input_layout.addWidget(self.input_field)
         config_layout.addLayout(input_layout)
         
         rules_layout = QVBoxLayout()
-        rules_layout.addWidget(QLabel("Regras: Read Write Move"))
+        rules_layout.addWidget(QLabel("Regras: EstadoAtual SímboloLido NovoEstado SímboloEscrito Direção"))
         self.rules_edit = QTextEdit()
-        self.rules_edit.setPlaceholderText("Enter rules here, one per line\nExample: A B R (READ WRITE MOVE), use '_' for blank")
+        self.rules_edit.setPlaceholderText(
+            "Digite as regras aqui, uma por linha\n"
+            "Exemplo: q0 A q1 B R\n"
+            "Use '_' para vazio, 'F' para parar"
+        )
         rules_layout.addWidget(self.rules_edit)
         config_layout.addLayout(rules_layout)
         
         file_layout = QHBoxLayout()
-        self.load_rules_button = QPushButton("Load Rules")
+        self.load_rules_button = QPushButton("Carregar Regras")
         self.load_rules_button.clicked.connect(self.load_rules_file)
-        self.save_rules_button = QPushButton("Save Rules")
+        self.save_rules_button = QPushButton("Salvar Regras")
         self.save_rules_button.clicked.connect(self.save_rules_file)
         file_layout.addWidget(self.load_rules_button)
         file_layout.addWidget(self.save_rules_button)
@@ -293,8 +314,15 @@ class TuringMachineGUI(QMainWindow):
     
     def update_display(self):
         self.tape_widget.update_tape(self.tm.tape, self.tm.head_pos)
+        self.state_label.setText(f"Estado: {self.tm.state}")
         
-        status = "Halted" if self.tm.halted else "Running" if self.tm.tape else "Ready"
+        if self.tm.halted:
+            status = "Parado"
+        elif self.tm.tape:
+            status = "Executando"
+        else:
+            status = "Pronto"
+            
         self.status_label.setText(f"Status: {status}")
     
     def run_machine(self):
@@ -307,7 +335,7 @@ class TuringMachineGUI(QMainWindow):
         self.tm.run_until_halt()
         self.update_display()
         
-        QMessageBox.information(self, "Result", f"Final tape content: {self.tm.get_tape_content()}")
+        QMessageBox.information(self, "Resultado", f"Conteúdo final da fita: {self.tm.get_tape_content()}")
         
     def step_machine(self):
         if not self.load_rules(): 
@@ -328,33 +356,37 @@ class TuringMachineGUI(QMainWindow):
     def load_rules(self): 
         rules_text = self.rules_edit.toPlainText()
         if rules_text:
-            self.tm.load_rules(rules_text)
+            try:
+                self.tm.load_rules(rules_text)
+                return True
+            except Exception as e:
+                QMessageBox.warning(self, "Aviso", f"Formato de regras inválido: {str(e)}")
+                return False
         else:
-            QMessageBox.warning(self, "Warning", "Nenhuma regra foi carregada.")
+            QMessageBox.warning(self, "Aviso", "Nenhuma regra carregada.")
             return False
-        return True
     
     def load_rules_file(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Abrir Arquivo de Regras", "", "Turing Machine Files (*.tm);;All Files (*)")
+        file_name, _ = QFileDialog.getOpenFileName(self, "Abrir Arquivo de Regras", "", "Arquivos de Máquina de Turing (*.tm);;Todos os Arquivos (*)")
         if file_name:
             try:
                 with open(file_name, 'r') as f:
                     content = f.read()
                     self.rules_edit.setPlainText(content)
                     self.tm.load_rules(content)
-                    QMessageBox.information(self, "Success", "Regras Carregadas com Sucesso")
+                    QMessageBox.information(self, "Sucesso", "Regras carregadas com sucesso")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Falha ao carregar: {str(e)}")
+                QMessageBox.critical(self, "Erro", f"Falha ao carregar: {str(e)}")
     
     def save_rules_file(self):
-        file_name, _ = QFileDialog.getSaveFileName(self, "Salvar arquivo de Regras", "", "Turing Machine Files (*.tm);;All Files (*)")
+        file_name, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo de Regras", "", "Arquivos de Máquina de Turing (*.tm);;Todos os Arquivos (*)")
         if file_name:
             try:
                 with open(file_name, 'w') as f:
                     f.write(self.rules_edit.toPlainText())
-                    QMessageBox.information(self, "Success", "Regras Salvas com Sucesso")
+                    QMessageBox.information(self, "Sucesso", "Regras salvas com sucesso")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"FFalha ao salvar o abrigo: {str(e)}")
+                QMessageBox.critical(self, "Erro", f"Falha ao salvar: {str(e)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -1,0 +1,20 @@
+# Verificador de palíndromos
+q0 a q1 X R
+q0 b q2 X R
+q0 X q0 X R
+q0 _ qH S F
+q1 a q1 a R
+q1 b q1 b R
+q1 _ q3 _ L
+q1 X q1 X R
+q2 a q2 a R
+q2 b q2 b R
+q2 _ q4 _ L
+q2 X q2 X R
+q3 a q5 _ L
+q3 X qH S F
+q4 b q5 _ L
+q4 X qH S F
+q5 a q5 a L
+q5 b q5 b L
+q5 X q0 X R
